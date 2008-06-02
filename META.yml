@@ -3,6 +3,7 @@ abstract: 'Handle bitmasks in an easy and flexible way'
 author:
   - 'Klaus Ita'
 build_requires:
+  Test::More: 0
   Test::Pod: 0
   Test::Pod::Coverage: 0
 distribution_type: module
@@ -17,7 +18,8 @@ no_index:
     - inc
     - t
 requires:
+  Carp: 0
   Class::Data::Inheritable: 0
   List::Util: 0
   perl: 5.10.0
-version: 1.00
+version: 1.01
