@@ -10,7 +10,7 @@ use 5.010;
 use Carp;
 use List::Util qw(reduce);
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 use overload
     '""' => sub {
@@ -124,7 +124,9 @@ sub init {
 
     my $items = {};
     my $count = 0;
-    while (my $name = shift) {
+    
+    # Take first element from @_
+    while (my $name = shift @_) {
         my $bit;
         
         $count ++;
@@ -132,9 +134,14 @@ sub init {
         croak('Too many values in bitmask: max '.$class->bitmask_length)
             if $count > $class->bitmask_length;
         
-        if ($_[0] =~ m/^\d+$/
-            || $_[0] =~ m/\A(?:0b)?([01]{$length})\Z/) {
-            $bit = shift;
+        
+        if (defined $_[0] 
+            && $_[0] =~ m/^\d+$/) {
+            $bit = shift @_;
+        } elsif (defined $_[0] 
+            && $_[0] =~ m/\A(?:0b)?([01]{$length})\Z/) {
+            shift @_;
+            $bit = oct('0b'.$1);
         } else {
             carp('Lazy bitmask initialization detected: Please enable <bitmask_lazyinit> or change init parameters')
                 unless ($class->bitmask_lazyinit);
@@ -171,7 +178,7 @@ sub _check_bit {
     
     # Get bit length
     my $value = int(log($bit)/log(2));
-    
+
     # Reject too long values
     return 0 
         if ($value >= $class->bitmask_length);

@@ -2,7 +2,8 @@
 
 # t/007_testmask3.t - check testmask 3
 
-use Test::More tests => 3;
+use Test::More tests => 4;
+use Test::NoWarnings;
 
 use strict;
 use warnings;

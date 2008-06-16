@@ -15,5 +15,7 @@ requires        'Class::Data::Inheritable'  => 0;
 build_requires  'Test::More'                => 0;
 build_requires  'Test::Pod'                 => 0;
 build_requires  'Test::Pod::Coverage'       => 0;
+build_requires  'Test::Warn'                => 0;
+build_requires  'Test::NoWarnings'          => 0;
 
 WriteAll;
