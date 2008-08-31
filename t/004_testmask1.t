@@ -2,7 +2,7 @@
 
 # t/004_testmask1.t - check testmask 1
 
-use Test::More tests=>50;
+use Test::More tests=>52;
 use Test::NoWarnings;
 
 use strict;
@@ -49,7 +49,7 @@ is($tm->string,'1000000000001000');
 my @sqlsearch = $tm->sqlfilter('field');
 is($sqlsearch[0],"bitand( field, B'1000000000001000' )");
 is(${$sqlsearch[1]}," = B'1000000000001000'");
-ok($tm->reset);
+$tm->reset;
 is($tm->length,0);
 ok($tm->add(0b1000000000111111));
 is($tm->length,7);
@@ -61,6 +61,11 @@ $tm->set([0b0000000000000010],[0b0000000000100010]);
 is($tm->mask,0b0000000000100010);
 $tm->add($tm2);
 ok($tm->hasany('value4'));
+my $tm3 = $tm->clone();
+$tm->remove('value4');
+ok(! $tm->hasany('value4'));
+ok($tm3->hasany('value4'));
+is($tm->length + 1,$tm3->length);
 
 # Utility functions
 is(Testmask1->bit2data(0b0000000000000010),'value2');
