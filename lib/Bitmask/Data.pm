@@ -10,12 +10,51 @@ use 5.010;
 use Carp;
 use List::Util qw(reduce);
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 
-use overload '""' => sub {
-    shift->mask,;
-};
-
+use overload 
+    '0+'    => 'mask',
+    '""'    => 'string',
+    '<=>'   => sub {
+        my ($self,$value,$order) = @_;
+        $value = $value->mask
+            if ref $value && $value->isa('Bitmask::Data');
+        $self = $self->mask;
+        return ($order) ? 
+            $self <=> $value :
+            $value <=> $self;
+    },
+    'cmp'   => sub {
+        my ($self,$value,$order) = @_;
+        $value = $value->string
+            if ref $value && $value->isa('Bitmask::Data');
+        $self = $self->string;
+        return ($order) ? 
+            $self cmp $value :
+            $value cmp $self;
+    },
+    '+='     => sub {
+        my ($self,$value) = @_;
+        return $self->add($value);
+    },
+    '-='     => sub {
+        my ($self,$value) = @_;
+        return $self->remove($value);
+    },
+    '|'     => sub {
+        my ($self,$value) = @_;
+        return $self->mask | $value; 
+    },
+    '^'     => sub {
+        my ($self,$value) = @_;
+        return $self->mask ^ $value; 
+    },
+    '^'     => sub {
+        my ($self,$value) = @_;
+        return $self->mask ^ $value; 
+    };
+    
+    
 __PACKAGE__->mk_classdata( bitmask_length   => 16 );
 __PACKAGE__->mk_classdata( bitmask_items    => {} );
 __PACKAGE__->mk_classdata( bitmask_default  => undef );
@@ -103,16 +142,16 @@ Complex bitmask also allow the creation of overlapping bitmask values:
     de_AT   => 0b001_00001, # German / Austria
     de_CH   => 0b001_00010, # German / Switzerland
     de_DE   => 0b001_00100, # German / Germany
-    fr_CH   => 0b010_00010, # French / Germany
+    fr_CH   => 0b010_00010, # French / Switzerland
     fr_FR   => 0b010_01000, # French / France
-    it_CH   => 0b100_00010, # Italian / Germany    
+    it_CH   => 0b100_00010, # Italian / Switzerland    
     it_IT   => 0b100_10000, # Italian / Italy
  );
  
  # Somewhere else
  
  LocaleBitmask->new('de')->hasany('de'); # true
- LocaleBitmask->new('de')->hasany('de_DE'); # true
+ LocaleBitmask->new('de')->hasany('de_DE'); # true ('de' matches)
  LocaleBitmask->new('de')->hasall('de_DE'); # false
  LocaleBitmask->new('de_DE','de_AT','de_CH')->hasexact('de','AT','DE','CH'); # true
  LocaleBitmask->new('de_DE','de_AT','de_CH')->list # de,DE,de_DE,de_AT,AT,de_CH,CH
@@ -123,6 +162,13 @@ Boolean value that enables/disables warnings for lazy initialization. (
 Lazy initialization = call of init without bitmask bit values)
 
 Default: 0
+
+ __PACKAGE__->bitmask_lazyinit(1);
+ __PACKAGE__->init(
+    'value1', # will be 0b001
+    'value2', # will be 0b010
+    'value3'  # will be 0b100
+ );
 
 =head3 bitmask_items
 
@@ -379,6 +425,38 @@ sub _parse_params {
     return @data;
 }
 
+=head2 Overloaded operators
+
+Bitmask::Data uses overload by default. 
+
+=over
+
+=item * Numeric context
+
+Returns bitmask integer value (see L<mask> method)
+
+=item * Scalar context
+
+Returns bitmask string representation (see L<string> method)
+
+=item * String comparison
+
+=item * Numeric comparison
+
+=item * -=
+
+Removes bitmask value (see L<remove> method)
+
+=item * +=
+
+Adds bitmask value (see L<ass> method)
+
+=item * ~, ^, &, |
+
+Performs the bit operations on the bitmask
+
+=back
+
 =head2 Public Methods
 
 =head3 new
@@ -581,6 +659,28 @@ sub add {
     return $self;
 }
 
+=head3 neg
+
+    $bm->neg();
+
+Negative. Sets all unset values and vice versa.
+
+Returns the object.
+
+=cut
+
+sub neg {
+    my ( $self ) = @_;
+
+    my $new = [];
+    foreach my $item (keys %{$self->bitmask_items}) {
+        push @{$new},$item
+            unless grep {$_ eq $item} @{$self->{_data}};
+    }
+    $self->{_data} = $new;
+    return $self;
+}
+
 =head3 mask
 
     $bm->mask();
@@ -732,8 +832,9 @@ sub hasany {
 Since Bitmask::Data is very liberal with input data you cannot use numbers
 as bitmask values.
 
-Bitmask::Data also adds a considerable processing overhead (especially when 
-the bitmask_complex option is enabled) to bitmask manipulations.
+Bitmask::Data adds a considerable processing overhead (especially when 
+the bitmask_complex option is enabled) to bitmask manipulations. If you don't
+need the extra comfort please use the perl built in bit operators.
 
 =head1 SUBCLASSING
 
