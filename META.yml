@@ -27,7 +27,8 @@ requires:
   List::Util: 0
   Math::BigInt: 0
   Scalar::Util: 0
+  parent: 0
   perl: 5.10.0
 resources:
   license: http://dev.perl.org/licenses/
-version: 2.000
+version: 2.010
