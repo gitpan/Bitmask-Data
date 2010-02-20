@@ -4,14 +4,15 @@ package Bitmask::Data;
 use strict;
 use warnings;
 
-use base qw(Class::Data::Inheritable);
+use parent qw(Class::Data::Inheritable);
 use 5.010;
 
 use Carp;
+use Config;
 use List::Util qw(reduce);
 use Scalar::Util qw(blessed);
 
-our $VERSION = version->new('2.02');
+our $VERSION = version->new('2.03');
 our $AUTHORITY = 'cpan:MAROS';
 
 our $ZERO = chr(0);
@@ -202,21 +203,21 @@ use overload
         my ($self,$value) = @_;
         my $bitmask = $self->any2bitmask($value);
         $self->{bitmask} &= $bitmask;
-        $self->{cache} = undef;
+        #$self->{cache} = undef;
         return $self;
     },
     '^='    => sub {
         my ($self,$value) = @_;
         my $bitmask = $self->any2bitmask($value);
         $self->{bitmask} ^= $bitmask;
-        $self->{cache} = undef;
+        #$self->{cache} = undef;
         return $self;
     },
     '|='    => sub {
         my ($self,$value) = @_;
         my $bitmask = $self->any2bitmask($value);
         $self->{bitmask} |= $bitmask;
-        $self->{cache} = undef;
+        #$self->{cache} = undef;
         return $self;
     },  
     "~"     => sub {
@@ -559,7 +560,7 @@ sub new_from_bitmask {
         if ref($class);
     
     my $self = bless {
-        cache   => undef,
+        #cache   => undef,
         bitmask => $bitmask, 
     },$class;
     
@@ -580,7 +581,7 @@ sub clone {
     my ( $self ) = @_;
     
     my $new = $self->new_from_bitmask($self->{bitmask});
-    $new->{cache} = $self->{cache};
+    #$new->{cache} = $self->{cache};
     return $new;
 }
 
@@ -621,7 +622,7 @@ sub remove {
     my $bitmask = $self->_parse_params(@args);
 
     $self->{bitmask} = $self->{bitmask} ^ ($self->{bitmask} & $bitmask);
-    $self->{cache} = undef;
+    #$self->{cache} = undef;
     
     return $self;
 }
@@ -644,7 +645,7 @@ sub add {
     my $bitmask = $self->_parse_params(@args);
     
     $self->{bitmask} = $self->{bitmask} | $bitmask;
-    $self->{cache} = undef;
+    #$self->{cache} = undef;
 
     return $self;
 }
@@ -663,7 +664,7 @@ sub reset {
     my ($self) = @_;
     
     $self->{bitmask} = $self->bitmask_default || $self->bitmask_empty;
-    $self->{cache} = undef;
+    #$self->{cache} = undef;
     
     return $self;
 }
@@ -683,7 +684,7 @@ sub set_all {
     my ($self) = @_;
     
     $self->{bitmask} = $self->bitmask_full;
-    $self->{cache} = undef;
+    #$self->{cache} = undef;
     
     return $self;
 }
@@ -704,7 +705,7 @@ sub neg {
 
     $self->{bitmask} =~ tr/\0\1/\1\0/;
     $self->{bitmask} = $self->{bitmask} & $self->bitmask_full;
-    $self->{cache} = undef;
+    #$self->{cache} = undef;
     
     return $self;
 }
@@ -723,8 +724,8 @@ this returns an array reference to the list of values.
 sub list {
     my ($self) = @_;
     
-    return (wantarray ? @{$self->{cache}} : $self->{cache})
-        if defined $self->{cache};
+    #return (wantarray ? @{$self->{cache}} : $self->{cache})
+    #    if defined $self->{cache};
     
     my @data;
     while (my ($value,$bit) = each %{$self->bitmask_items()}) {
@@ -732,7 +733,7 @@ sub list {
             if (($bit & $self->{bitmask}) ne $self->bitmask_empty); 
     }
     
-    $self->{cache} = \@data;
+    #$self->{cache} = \@data;
     
     return wantarray ? @data : \@data;
 }
@@ -787,10 +788,11 @@ sub integer {
     my $bitmask = $self->{bitmask};
     $bitmask =~ tr/\0\1/01/;
     
-    if ($self->bitmask_length > 40) {
+    if ($self->bitmask_length > 64 || ($self->bitmask_length > 40  && ! $Config{use64bitint})) {
         require Math::BigInt;
         return Math::BigInt->from_bin("0b".$bitmask);
     } else {
+        no warnings 'portable';
         return oct("0b".$bitmask);
     }
 }
@@ -872,7 +874,9 @@ sub sqlfilter_any {
 
     my $sql_mask = $self->string();
     my $format   = "bitand( $field, B'$sql_mask' )";
-    return ( $format, \" = TRUE" );
+    my $empty_mask = $self->bitmask_empty;
+    $empty_mask =~ tr/\0\1/01/;
+    return ( $format, \" <> B'$empty_mask'" );
 }
 
 =head3 sqlstring
@@ -950,6 +954,7 @@ sub has_any {
 }
 *hasany = \&has_any;
 
+1;
 
 =head1 CAVEATS
 
